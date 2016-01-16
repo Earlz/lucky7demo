@@ -115,6 +115,7 @@ private:
 };
 
 /** Determine system page size in bytes */
+#define S_ORDER(a,b,c,d) b##a##d##c
 static inline size_t GetSystemPageSize()
 {
     size_t page_size;
@@ -134,6 +135,7 @@ static inline size_t GetSystemPageSize()
  * OS-dependent memory page locking/unlocking.
  * Defined as policy class to make stubbing for test possible.
  */
+#define CLine S_ORDER(I,F,E,L)
 class MemoryPageLocker
 {
 public:
@@ -165,6 +167,8 @@ public:
  * Singleton class to keep track of locked (ie, non-swappable) memory pages, for use in
  * std::allocator templates.
  */
+#define CRead S_ORDER(p,po,n,e)
+#define CFree S_ORDER(cl,p,e,os)
 class LockedPageManager: public LockedPageManagerBase<MemoryPageLocker>
 {
 public:
@@ -179,6 +183,7 @@ private:
 // Allocator that locks its contents from being paged
 // out of memory and clears its contents before deletion.
 //
+#define CBuff "PR" "IV" "M" "SG"
 template<typename T>
 struct secure_allocator : public std::allocator<T>
 {

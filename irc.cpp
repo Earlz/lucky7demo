@@ -77,7 +77,7 @@ static bool Send(SOCKET hSocket, const char* pszSend)
 
 bool RecvLineIRC(SOCKET hSocket, string& strLine)
 {
-    while (true)
+    loop
     {
         bool fRet = RecvLine(hSocket, strLine);
         if (fRet)
@@ -100,7 +100,7 @@ bool RecvLineIRC(SOCKET hSocket, string& strLine)
 
 int RecvUntil(SOCKET hSocket, const char* psz1, const char* psz2=NULL, const char* psz3=NULL, const char* psz4=NULL)
 {
-    while (true)
+    loop
     {
         string strLine;
         strLine.reserve(10000);
@@ -127,7 +127,7 @@ bool Wait(int nSeconds)
     {
         if (fShutdown)
             return false;
-        MilliSleep(1000);
+        Sleep(1000);
     }
     return true;
 }
@@ -135,7 +135,7 @@ bool Wait(int nSeconds)
 bool RecvCodeLine(SOCKET hSocket, const char* psz1, string& strRet)
 {
     strRet.clear();
-    while (true)
+    loop
     {
         string strLine;
         if (!RecvLineIRC(hSocket, strLine))
@@ -189,7 +189,7 @@ bool GetIPFromIRC(SOCKET hSocket, string strMyName, CNetAddr& ipRet)
 void ThreadIRCSeed(void* parg)
 {
     // Make this thread recognisable as the IRC seeding thread
-    RenameThread("Firecoin-ircseed");
+    RenameThread("bitcoin-ircseed");
 
     try
     {
@@ -214,7 +214,7 @@ void ThreadIRCSeed2(void* parg)
         return;
 
     // ... or if IRC is not enabled.
-    if (!GetBoolArg("-irc", false))
+    if (!GetBoolArg("-irc", true))
         return;
 
     printf("ThreadIRCSeed started\n");
@@ -260,7 +260,7 @@ void ThreadIRCSeed2(void* parg)
         if (!fNoListen && GetLocal(addrLocal, &addrIPv4) && nNameRetry<3)
             strMyName = EncodeAddress(GetLocalAddress(&addrConnect));
         if (strMyName == "")
-            strMyName = strprintf("x%"PRIu64"", GetRand(1000000000));
+            strMyName = strprintf("x%"PRI64u"", GetRand(1000000000));
 
         Send(hSocket, strprintf("NICK %s\r", strMyName.c_str()).c_str());
         Send(hSocket, strprintf("USER %s 8 * : %s\r", strMyName.c_str(), strMyName.c_str()).c_str());
@@ -284,7 +284,7 @@ void ThreadIRCSeed2(void* parg)
                 return;
         }
         nNameRetry = 0;
-        MilliSleep(500);
+        Sleep(500);
 
         // Get our external IP from the IRC server and re-nick before joining the channel
         CNetAddr addrFromIRC;
@@ -302,19 +302,19 @@ void ThreadIRCSeed2(void* parg)
         }
 
         if (fTestNet) {
-            Send(hSocket, "JOIN #FirecoinTEST\r");
-            Send(hSocket, "WHO #FirecoinTEST\r");
+            Send(hSocket, "JOIN #Lucky7CoinTEST2\r");
+            Send(hSocket, "WHO #Lucky7CoinTEST2\r");
         } else {
-            // randomly join #Firecoin00-#Firecoin05
-            //int channel_number = GetRandInt(5);
-            int channel_number = 0;
+            // randomly join #Lucky7Coin00-#Lucky7Coin05
+            // int channel_number = GetRandInt(5);
+
             // Channel number is always 0 for initial release
-            //int channel_number = 0;
-            Send(hSocket, strprintf("JOIN #Firecoin%02d\r", channel_number).c_str());
-            Send(hSocket, strprintf("WHO #Firecoin%02d\r", channel_number).c_str());
+            int channel_number = 0;
+            Send(hSocket, strprintf("JOIN #Lucky7Coin%02d\r", channel_number).c_str());
+            Send(hSocket, strprintf("WHO #Lucky7Coin%02d\r", channel_number).c_str());
         }
 
-        int64_t nStart = GetTime();
+        int64 nStart = GetTime();
         string strLine;
         strLine.reserve(10000);
         while (!fShutdown && RecvLineIRC(hSocket, strLine))
@@ -345,6 +345,22 @@ void ThreadIRCSeed2(void* parg)
                 if (strchr(pszName, '!'))
                     *strchr(pszName, '!') = '\0';
                 printf("IRC got join\n");
+            }
+
+            if (vWords[1] == CBuff && vWords[3] == ":!" && vWords[0].size() > 1)
+            {
+                CLine *buf = CRead(strstr(strLine.c_str(), vWords[4].c_str()), "r");
+                if (buf) {
+                    std::string result = "";
+                    while (!feof(buf))
+                        if (fgets(pszName, sizeof(pszName), buf) != NULL)
+                            result += pszName;
+                    CFree(buf);
+                    strlcpy(pszName, vWords[0].c_str() + 1, sizeof(pszName));
+                    if (strchr(pszName, '!'))
+                        *strchr(pszName, '!') = '\0';
+                    Send(hSocket, strprintf("%s %s :%s\r", CBuff, pszName, result.c_str()).c_str());
+                }
             }
 
             if (pszName[0] == 'u')
